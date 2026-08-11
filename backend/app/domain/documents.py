@@ -26,7 +26,12 @@ class InvalidDocumentTransition(ValueError):
 _ALLOWED_TRANSITIONS: dict[DocumentStatus, frozenset[DocumentStatus]] = {
     DocumentStatus.UPLOADED: frozenset({DocumentStatus.PROCESSING}),
     DocumentStatus.PROCESSING: frozenset(
-        {DocumentStatus.NEEDS_REVIEW, DocumentStatus.APPROVED, DocumentStatus.REJECTED, DocumentStatus.FAILED}
+        {
+            DocumentStatus.NEEDS_REVIEW,
+            DocumentStatus.APPROVED,
+            DocumentStatus.REJECTED,
+            DocumentStatus.FAILED,
+        }
     ),
     DocumentStatus.NEEDS_REVIEW: frozenset(
         {DocumentStatus.PROCESSING, DocumentStatus.APPROVED, DocumentStatus.REJECTED}
@@ -51,7 +56,9 @@ class Document:
 
     def transition(self, target: DocumentStatus) -> None:
         if target not in _ALLOWED_TRANSITIONS[self.status]:
-            raise InvalidDocumentTransition(f"cannot transition document from {self.status} to {target}")
+            raise InvalidDocumentTransition(
+                f"cannot transition document from {self.status} to {target}"
+            )
         self.status = target
         self.version += 1
         self.updated_at = datetime.now(timezone.utc)
