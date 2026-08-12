@@ -97,6 +97,12 @@ Initial events:
 
 Consumers must tolerate duplicate delivery and unknown additive fields.
 
+The outbox publisher enqueues committed events and marks them published only after
+the queue accepts them. A crash between those operations can produce a duplicate;
+consumers therefore use stage idempotency keys. Worker failures retry with bounded
+attempts and then move to a dead-letter queue. Processing stages are persisted so
+operators can inspect the exact attempt and error without relying on worker logs.
+
 ## Testing strategy
 
 - Unit: state transitions, validators, masking, policy predicates, retry classification.
