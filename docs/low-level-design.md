@@ -32,6 +32,7 @@ Only the workflow service may perform transitions. API handlers validate command
 - `decisions(id, case_id, outcome, reason_code, actor_id, policy_version, evidence_refs_json)`
 - `outbox_events(id, tenant_id, aggregate_type, aggregate_id, event_type, payload_json, published_at)`
 - `audit_events(id, tenant_id, actor_id, action, resource_type, resource_id, metadata_json, occurred_at)`
+- `idempotency_records(id, tenant_id, key, request_hash, response_json, resource_type, resource_id, created_at)`
 
 Identity uses a tenant-scoped `users` table keyed by the external identity-provider
 subject, a tenant-scoped `roles` table, and a `user_roles` join table. JWTs carry the
@@ -69,6 +70,12 @@ Sensitive extracted values should be encrypted; deterministic lookups use a keye
 - `POST /v1/cases/{case_id}/ask` — response must include citations and confidence metadata.
 
 All mutating endpoints accept an `Idempotency-Key` and return a correlation ID. Error responses use a stable code, human-safe message, and correlation ID; they never echo document text or tokens.
+
+Case and document intake requires a tenant-scoped idempotency key. The request body
+is canonicalized and hashed; a replay returns the original response, while reuse
+with a different body returns `409`. Document versions are deduplicated by a
+tenant-scoped SHA-256 hash. Upload URLs are generated from server-owned UUIDs and
+never from the client filename.
 
 Protected endpoints require a bearer token with `sub`, `tenant_id`, `iat`, `exp`, and
 issuer claims. Authorization failures return 401 for missing/invalid tokens and 403
