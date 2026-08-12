@@ -144,6 +144,70 @@ class DocumentVersion(Base, TimestampMixin):
 
     document: Mapped[Document] = relationship(back_populates="versions")
     processing_runs: Mapped[list["ProcessingRun"]] = relationship(back_populates="document_version")
+    pages: Mapped[list["DocumentPage"]] = relationship(back_populates="document_version")
+    classifications: Mapped[list["DocumentClassification"]] = relationship(
+        back_populates="document_version"
+    )
+
+
+class DocumentPage(Base, TimestampMixin):
+    __tablename__ = "document_pages"
+    __table_args__ = (
+        Index(
+            "ix_document_pages_version_number", "document_version_id", "page_number", unique=True
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    rotation: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    quality_score: Mapped[float | None] = mapped_column(nullable=True)
+    artifact_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="pages")
+    ocr_result: Mapped["OcrPageResult | None"] = relationship(back_populates="page", uselist=False)
+
+
+class OcrPageResult(Base, TimestampMixin):
+    __tablename__ = "ocr_page_results"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    page_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_pages.id"), nullable=False, unique=True
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False, default="")
+    confidence: Mapped[float] = mapped_column(nullable=False, default=0.0)
+    blocks: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    provider: Mapped[str] = mapped_column(String(80), nullable=False)
+    model_version: Mapped[str] = mapped_column(String(80), nullable=False)
+
+    page: Mapped[DocumentPage] = relationship(back_populates="ocr_result")
+
+
+class DocumentClassification(Base, TimestampMixin):
+    __tablename__ = "document_classifications"
+    __table_args__ = (
+        Index("ix_document_classifications_version_created", "document_version_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    label: Mapped[str] = mapped_column(String(64), nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False)
+    alternatives: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    model_version: Mapped[str] = mapped_column(String(80), nullable=False)
+
+    document_version: Mapped[DocumentVersion] = relationship(back_populates="classifications")
 
 
 class ProcessingRun(Base, TimestampMixin):
