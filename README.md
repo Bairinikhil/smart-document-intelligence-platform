@@ -40,4 +40,8 @@ python -m pytest
 python -m compileall app tests
 ```
 
+For persistence development, copy `backend/.env.example` to `backend/.env`, set
+`SDI_DATABASE_URL`, install the data extra, and run `alembic upgrade head` from
+the `backend` directory.
+
 See [docs/roadmap.md](docs/roadmap.md) for the PR-by-PR execution plan.
