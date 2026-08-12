@@ -210,6 +210,39 @@ class DocumentClassification(Base, TimestampMixin):
     document_version: Mapped[DocumentVersion] = relationship(back_populates="classifications")
 
 
+class ExtractedField(Base, TimestampMixin):
+    __tablename__ = "extracted_fields"
+    __table_args__ = (
+        Index("ix_extracted_fields_version_name", "document_version_id", "field_name"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    field_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    value_ciphertext: Mapped[str] = mapped_column(String, nullable=False)
+    value_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    confidence: Mapped[float] = mapped_column(nullable=False)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    model_version: Mapped[str] = mapped_column(String(80), nullable=False)
+    review_state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+
+
+class ValidationResult(Base, TimestampMixin):
+    __tablename__ = "validation_results"
+    __table_args__ = (Index("ix_validation_results_case_rule", "case_id", "rule_code"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    case_id: Mapped[UUID] = mapped_column(ForeignKey("cases.id"), nullable=False)
+    rule_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    policy_version: Mapped[str] = mapped_column(String(80), nullable=False)
+
+
 class ProcessingRun(Base, TimestampMixin):
     __tablename__ = "processing_runs"
     __table_args__ = (Index("ix_processing_runs_document_status", "document_version_id", "status"),)

@@ -36,6 +36,8 @@ Only the workflow service may perform transitions. API handlers validate command
 - `document_pages(id, tenant_id, document_version_id, page_number, width, height, rotation, quality_score, artifact_key)`
 - `ocr_page_results(id, tenant_id, page_id, text, confidence, blocks_json, provider, model_version)`
 - `document_classifications(id, tenant_id, document_version_id, label, confidence, alternatives_json, model_version)`
+- `extracted_fields(id, tenant_id, document_version_id, field_name, value_ciphertext, value_hash, confidence, evidence_json, model_version, review_state)`
+- `validation_results(id, tenant_id, case_id, rule_code, outcome, evidence_json, policy_version)`
 
 Identity uses a tenant-scoped `users` table keyed by the external identity-provider
 subject, a tenant-scoped `roles` table, and a `user_roles` join table. JWTs carry the
@@ -105,6 +107,12 @@ the queue accepts them. A crash between those operations can produce a duplicate
 consumers therefore use stage idempotency keys. Worker failures retry with bounded
 attempts and then move to a dead-letter queue. Processing stages are persisted so
 operators can inspect the exact attempt and error without relying on worker logs.
+
+Entity extraction emits typed field evidence with page number and source span.
+Sensitive values are represented by ciphertext plus a keyed hash for deterministic
+matching. Format and cross-document validators produce `pass`, `fail`, or `review`;
+mismatches and low-confidence values are routed to review rather than silently
+accepted.
 
 OCR providers return page-scoped text, confidence, and optional bounding boxes. The
 classifier consumes only that normalized contract and records model version plus

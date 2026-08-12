@@ -18,6 +18,8 @@ def test_initial_schema_contains_required_tables() -> None:
         "document_pages",
         "ocr_page_results",
         "document_classifications",
+        "extracted_fields",
+        "validation_results",
     }
 
     assert expected.issubset(Base.metadata.tables)
