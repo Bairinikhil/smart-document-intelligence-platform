@@ -3,7 +3,17 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, JSON, String, Uuid, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    JSON,
+    String,
+    Uuid,
+    func,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -52,6 +62,32 @@ class Tenant(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
 
     cases: Mapped[list["Case"]] = relationship(back_populates="tenant")
+
+
+class User(Base, TimestampMixin):
+    __tablename__ = "users"
+    __table_args__ = (UniqueConstraint("tenant_id", "subject", name="uq_users_tenant_subject"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
+
+class Role(Base, TimestampMixin):
+    __tablename__ = "roles"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_roles_tenant_name"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class UserRole(Base):
+    __tablename__ = "user_roles"
+
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    role_id: Mapped[UUID] = mapped_column(ForeignKey("roles.id"), primary_key=True)
 
 
 class Case(Base, TimestampMixin):
@@ -133,3 +169,22 @@ class OutboxEvent(Base, TimestampMixin):
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AuditEvent(Base):
+    __tablename__ = "audit_events"
+    __table_args__ = (Index("ix_audit_events_tenant_occurred", "tenant_id", "occurred_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    actor_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    event_metadata: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSON, nullable=False, default=dict
+    )
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
