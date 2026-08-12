@@ -14,6 +14,7 @@ def test_initial_schema_contains_required_tables() -> None:
         "user_roles",
         "audit_events",
         "idempotency_records",
+        "processing_stage_runs",
     }
 
     assert expected.issubset(Base.metadata.tables)

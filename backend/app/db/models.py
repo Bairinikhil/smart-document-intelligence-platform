@@ -45,6 +45,14 @@ class ProcessingStatus(StrEnum):
     FAILED = "failed"
 
 
+class StageStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    DEAD_LETTERED = "dead_lettered"
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -155,6 +163,36 @@ class ProcessingRun(Base, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     document_version: Mapped[DocumentVersion] = relationship(back_populates="processing_runs")
+    stage_runs: Mapped[list["ProcessingStageRun"]] = relationship(back_populates="processing_run")
+
+
+class ProcessingStageRun(Base, TimestampMixin):
+    __tablename__ = "processing_stage_runs"
+    __table_args__ = (
+        Index(
+            "ix_processing_stage_runs_run_stage",
+            "processing_run_id",
+            "stage",
+            "idempotency_key",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    tenant_id: Mapped[UUID] = mapped_column(ForeignKey("tenants.id"), nullable=False)
+    processing_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("processing_runs.id"), nullable=False
+    )
+    stage: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=StageStatus.PENDING)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    processing_run: Mapped[ProcessingRun] = relationship(back_populates="stage_runs")
 
 
 class OutboxEvent(Base, TimestampMixin):

@@ -6,7 +6,14 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Case, Document, DocumentStatus, DocumentVersion, IdempotencyRecord
+from app.db.models import (
+    Case,
+    Document,
+    DocumentStatus,
+    DocumentVersion,
+    IdempotencyRecord,
+    OutboxEvent,
+)
 from app.intake.idempotency import find_replay, request_hash
 from app.intake.schemas import CreateCaseRequest, CreateDocumentRequest
 from app.security.audit import record_audit_event
@@ -88,6 +95,15 @@ async def create_case(
         response=response,
         resource_type="case",
         resource_id=case.id,
+    )
+    session.add(
+        OutboxEvent(
+            tenant_id=principal.tenant_id,
+            aggregate_type="case",
+            aggregate_id=case.id,
+            event_type="case.created",
+            payload={"case_id": str(case.id), "case_type": case.case_type},
+        )
     )
     await record_audit_event(
         session,
@@ -194,6 +210,21 @@ async def create_document_upload(
         response=response,
         resource_type="document_version",
         resource_id=document_version.id,
+    )
+    session.add(
+        OutboxEvent(
+            tenant_id=principal.tenant_id,
+            aggregate_type="document_version",
+            aggregate_id=document_version.id,
+            event_type="document.uploaded",
+            payload={
+                "case_id": str(case.id),
+                "document_id": str(document.id),
+                "document_version_id": str(document_version.id),
+                "document_type": document.document_type,
+                "pipeline_version": "v1",
+            },
+        )
     )
     await record_audit_event(
         session,
