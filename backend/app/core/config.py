@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +24,10 @@ class Settings(BaseSettings):
     database_url: str | None = None
     db_pool_size: int = 5
     db_max_overflow: int = 10
+    jwt_secret: str = "local-development-secret-change-me"
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    jwt_issuer: str = "sdi-api"
+    access_token_ttl_minutes: int = 15
 
 
 @lru_cache

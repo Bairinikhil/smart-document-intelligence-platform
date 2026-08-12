@@ -9,6 +9,10 @@ def test_initial_schema_contains_required_tables() -> None:
         "document_versions",
         "processing_runs",
         "outbox_events",
+        "users",
+        "roles",
+        "user_roles",
+        "audit_events",
     }
 
     assert expected.issubset(Base.metadata.tables)

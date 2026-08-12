@@ -33,6 +33,12 @@ Only the workflow service may perform transitions. API handlers validate command
 - `outbox_events(id, tenant_id, aggregate_type, aggregate_id, event_type, payload_json, published_at)`
 - `audit_events(id, tenant_id, actor_id, action, resource_type, resource_id, metadata_json, occurred_at)`
 
+Identity uses a tenant-scoped `users` table keyed by the external identity-provider
+subject, a tenant-scoped `roles` table, and a `user_roles` join table. JWTs carry the
+user, tenant, and role claims; the API derives permissions from server-side role
+maps and never trusts client-supplied permission claims. A request's tenant scope is
+always taken from the verified token context.
+
 Sensitive extracted values should be encrypted; deterministic lookups use a keyed hash in `value_hash`. Full Aadhaar should not be required by default; store the minimum permitted representation and a masked display value.
 
 ## API surface
@@ -63,6 +69,11 @@ Sensitive extracted values should be encrypted; deterministic lookups use a keye
 - `POST /v1/cases/{case_id}/ask` — response must include citations and confidence metadata.
 
 All mutating endpoints accept an `Idempotency-Key` and return a correlation ID. Error responses use a stable code, human-safe message, and correlation ID; they never echo document text or tokens.
+
+Protected endpoints require a bearer token with `sub`, `tenant_id`, `iat`, `exp`, and
+issuer claims. Authorization failures return 401 for missing/invalid tokens and 403
+for insufficient permissions. Audit events are append-only records written in the
+same transaction as the protected business action.
 
 ## Event contracts
 

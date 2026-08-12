@@ -1,7 +1,8 @@
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 
 from app.core.config import Settings, get_settings
 from app.db.session import Database
+from app.security.auth import Permission, Principal, require_permission
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -13,6 +14,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description="BFSI document intake and intelligence platform",
     )
     application.state.database = database
+    application.state.settings = runtime_settings
 
     @application.get("/v1/health/live", tags=["health"])
     def liveness() -> dict[str, str]:
@@ -33,6 +35,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 detail={"status": "unavailable", "database": "unreachable"},
             )
         return {"status": "ok", "database": "ok"}
+
+    @application.get("/v1/auth/me", tags=["identity"])
+    async def current_user(
+        principal: Principal = Depends(require_permission(Permission.CASE_READ)),
+    ) -> dict[str, object]:
+        """Return the masked identity and authorization context for the caller."""
+
+        return {
+            "user_id": str(principal.user_id),
+            "tenant_id": str(principal.tenant_id),
+            "subject": principal.subject,
+            "roles": sorted(principal.roles),
+            "permissions": sorted(permission.value for permission in principal.permissions),
+        }
 
     return application
 
